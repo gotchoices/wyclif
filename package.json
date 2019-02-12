@@ -2,22 +2,30 @@
   "name": "wyclif",
   "version": "1.0.0",
   "description": "WyattERP Control Layer InterFace",
-  "main": null,
+  "main": "lib/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "dev-hot": "webpack-dev-server --mode development --hot",
+    "dev-build": "webpack --mode development --watch --progress --hide-modules",
+    "dev-server": "bin/server.js --spaPort=0",
+    "dev": "npm-run-all --parallel dev-build dev-server",
+    "server": "bin/server.js",
+    "makecert": "bin/makecert",
+    "build": "webpack --mode production",
+    "profile": "webpack --profile --json >/tmp/webpack-stats.json",
+    "build-sql-Fixme": "cd schema; make sql",
+    "preversion-Fixme": "npm-run-all --parallel build-sql build && git add -A",
+    "certificate": "bin/makecert"
   },
-  "keywords": [
-  ],
+  "keywords": [],
   "author": "Kyle Bateman",
   "license": "MIT",
   "homepage": null,
-  "babel": {
-    "presets": [
-      "env"
-    ]
-  },
   "dependencies": {
+    "express": "^4.16.4",
+    "string-hash": "^1.1.3",
+    "winston": "^3.2.1",
+    "yargs": "^12.0.5"
   },
-  "devDependencies": {
-  }
+  "devDependencies": {}
 }
