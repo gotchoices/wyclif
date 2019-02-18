@@ -17,6 +17,9 @@
     "preversion-Fixme": "npm-run-all --parallel build-sql build && git add -A",
     "certificate": "bin/makecert"
   },
+  "bin": {
+    "wyclif": "server.js"
+  },
   "keywords": [],
   "author": "Kyle Bateman",
   "license": "MIT",
