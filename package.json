@@ -18,7 +18,7 @@
     "certificate": "bin/makecert"
   },
   "bin": {
-    "wyclif": "server.js"
+    "wyclif": "bin/server.js"
   },
   "keywords": [],
   "author": "Kyle Bateman",
