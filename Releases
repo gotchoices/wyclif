@@ -1,0 +1,9 @@
+Change Log:
+
+1.0.4	2019-Oct
+	- Can function as standalone server
+	- Support certificate infrastructure
+	- Support SSL connection to database
+
+1.0.1	2019-Feb
+	- Split common code out of mychips

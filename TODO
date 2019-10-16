@@ -1,0 +1,9 @@
+TODO:
+
+X- Copy applicable code back from mychips/bin/mychips.js (database SSL, etc.)
+X- Wyclif launches its own SPA server
+- Move bin/makecert back to this package
+- Generic access to wyselib basic schema
+- Access to wysegi?
+- 
+- 
