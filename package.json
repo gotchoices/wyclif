@@ -13,7 +13,7 @@
     "server": "bin/server.js",
     "makecert": "bin/makecert",
     "profile": "webpack --profile --json >/tmp/webpack-stats.json",
-    "preversion": "git add -A",
+    "preversion": "npm-run-all build && git add -A",
     "certificate": "bin/makecert"
   },
   "bin": {
