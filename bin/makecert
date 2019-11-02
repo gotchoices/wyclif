@@ -1,36 +1,125 @@
 #!/bin/sh
 #Build a private/public key pair and self-signed certificate for this server
-#Copyright MyCHIPs.org; See license in root of this package
+#Copyright WyattERP.org; See license in root of this package
+#This expects to be in, just above, or just below a pki folder with example.conf in it
+#Certificates will be build in a dir called pki/local
 # -----------------------------------------------------------------------------
 length=2048				#RSA Key length
+type=spa				#Build application server keys by default
+node="wyatt.%"				#Machine name for the certificate we will build (%=domain)
+HASH="sha256"
 
-basedir=$(pwd)				#Assume to be root of mychips package
+pargs=()
+while [[ $# -gt 0 ]]; do		#Parse command line
+  case $1 in
+    -t|--type) type="$2"; shift;;
+    *) pargs+=("$1");;
+  esac
+  shift
+done
+set -- "${pargs[@]}"			#Restore positional arguments
 
-if [ ! -z "$2" ]; then			#If you want a different key length
-    length="$2"
+if [ ! -z "$1" ]; then			#Specific machine the certificate is for
+    node="$1"
 fi
 
-if ! cd pki; then
-  echo "Can't find pki directory; Aborting"
-  exit 1
+if [ -d pki ]; then			#Are we above a pki dir?
+  if ! cd pki; then			#then go to it
+    echo "Can't find pki directory; Aborting"; exit 1
+  fi
+elif [ ! -f ../example.conf ]; then	#Are we just below it
+  cd ..
+elif [ ! -f example.conf ]; then	#Not in the right place
+  echo "Can't find ssl configuration file; Aborting"; exit 1
 fi
 
-if [ ! -f self_cert.conf ]; then
-  echo "Can't find ssl configuration file; Aborting"
-  exit 1
+if [ ! -d local ]; then
+  mkdir -m=700 local
+fi
+cd local
+#echo "type:$type node:$node pwd:$(pwd)"; exit
+
+#Compare two files, return true if the first is newer than the second, or the second doesn't exist
+function fresher() {
+  if [ ! -f "$1" ]; then
+    echo "Can't find source file: $1"
+    exit 1
+  fi
+  [ ! -f "$2" -o "$1" -nt "$2" ]
+}
+
+conf="../local.conf"
+if [ ! -f $conf ]; then
+  conf="../example.conf"
+fi
+. $conf			#Read local config as bash variables
+
+nod=$(echo "$node" |sed -e 's/\..*$//')	#strip-down node, with no domain attached
+catype="${type}-ca"			#Filename base for Certificate Authority files
+caconf="${catype}-conf"			#and its configuration file
+nodetype="${type}-$nod"			#Filename base for node certificate
+nodeconf="${nodetype}-conf"		#and its configuration file
+commonName="$(echo "$node" | sed -e "s/%/${domain}/")"		#and its certificate common name
+#echo "catype:$datype caconf:$caconf nodetype:$nodetype nodeconf:$nodeconf commonName:$commonName"; exit 0
+
+if fresher $conf $caconf; then		#Build a certificate authority configuration for this type
+  cat ../ca1.conf >$caconf
+  cat $conf |sed -e "s/%\.//" >>$caconf
+  echo "commonName = \"$domain\"" >>$caconf
+  cat ../ca2.conf >>$caconf
+  
+  if fresher $caconf ${catype}.key; then			#Build private key for CA
+    openssl genrsa -out ${catype}.key $length
+    chmod og-rwx ${catype}.key
+  fi
+#  if fresher ${catype}.key ${catype}.pub; then			#Build public key for CA
+#    openssl rsa -in ${catype}.key -pubout -out ${catype}.pub
+#  fi
+  if fresher $caconf ${catype}.crt || fresher ${catype}.key ${catype}.crt; then		#Build CA certificate
+    openssl req -new -x509 -key ${catype}.key -out ${catype}.crt -config $caconf
+  fi
+#  if fresher ${catype}.crt ${catype}.txt; then			#Human readable
+#    openssl x509 -in ${catype}.crt -text >${catype}.txt
+#  fi
 fi
 
-#Build RSA private key for this server
-openssl genrsa -out server_private_key.pem $length
+if fresher $conf $nodeconf; then	#Build configuration for this node
+  cat ../node1.conf >$nodeconf
+  cat $conf |sed -e "s/%\./${node}\./" >>$nodeconf
+  echo "commonName = \"$commonName\"" >>$nodeconf
+  cat ../node2.conf >>$nodeconf
+  if [ "$nod" != "$node" ]; then
+    cat ../node3.conf >>$nodeconf
+    echo "DNS.1 = \"$commonName\"" >>$nodeconf
+    echo "DNS.2 = \"$nod\"" >>$nodeconf
+  fi
+fi
 
-#Build public key from private key
-openssl rsa -in server_private_key.pem -pubout -out server_public_key.pem
+if fresher $nodeconf ${nodetype}.key; then			#Private key for node
+  openssl genrsa -out ${nodetype}.key $length
+  chmod og-rwx ${nodetype}.key
+fi
 
-#Encrypt the private key
-#openssl rsa -in server_private_key.pem -des3 -out server_encrypted_key.pem
+#if fresher ${nodetype}.key ${nodetype}.pub; then		#Public key from private key
+#  openssl rsa -in server_private_key.pem -pubout -out server_public_key.pem
+#fi
 
-#Make a self-signed certificate
-openssl req -new -x509 -key server_private_key.pem -out server_certificate.pem -config self_cert.conf
+#if fresher ${nodetype}.key ${nodetype}-crypt.pem; then		#Encrypt the private key
+#  openssl rsa -in ${nodetype}.key -des3 -out ${nodetype}-crypt.pem
+#fi
 
-#Display contents of my cacert.pem:
-#openssl x509 -in cacert.pem -text >cacert.txt
+if fresher ${nodetype}.key ${nodetype}.crt || fresher $nodeconf ${nodetype}.crt; then		#Make a signed certificate
+  openssl req -new -config $nodeconf -key ${nodetype}.key -$HASH -nodes -out ${nodetype}.csr
+
+#More elaborate tracking:
+  if [ ! -f index.txt ]; then touch index.txt; fi
+  if [ ! -f serial.txt ]; then echo '01' >serial.txt; fi
+  openssl ca -config $caconf -policy signing_policy -extensions signing_req \
+    -batch -cert ${catype}.crt -keyfile ${catype}.key -outdir . \
+    -out ${nodetype}.crt -notext -infiles ${nodetype}.csr
+
+#Simpler? (untested)
+#  openssl x509 -req -in ${nodetype}.csr -text -days 365 -CA ${catype}.crt -CAkey ${catype}.key -CAcreateserial -out ${nodetype}.crt
+
+  rm ${nodetype}.csr ??.pem index.txt.attr *.old
+fi

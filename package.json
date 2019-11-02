@@ -11,14 +11,16 @@
     "dev-server": "bin/server.js --spaPort=0",
     "dev": "npm-run-all --parallel dev-build dev-server",
     "server": "bin/server.js",
-    "makecert": "bin/makecert",
+    "cert": "bin/makecert",
+    "init": "bin/localcerts",
     "profile": "webpack --profile --json >/tmp/webpack-stats.json",
     "preversion": "npm-run-all build && git add -A",
     "certificate": "bin/makecert"
   },
   "bin": {
     "wyclif": "bin/server.js",
-    "wyclif-info": "bin/info.js"
+    "wyclif-info": "bin/info.js",
+    "wyclif-cert": "bin/makecert"
   },
   "keywords": [],
   "author": "Kyle Bateman",
