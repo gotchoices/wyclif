@@ -1,5 +1,8 @@
 Change Log:
 
+1.0.6	2019-Nov
+	- Implement script for building local certificates
+
 1.0.5	2019-Oct
 	- Fixes to ERD viewer in wysegi
 	- Add wysegi database admin tool
