@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #Build a private/public key pair and self-signed certificate for this server
 #Copyright WyattERP.org; See license in root of this package
 #This expects to be in, just above, or just below a pki folder with example.conf in it
@@ -36,7 +36,7 @@ elif [ ! -f example.conf ]; then	#Not in the right place
 fi
 
 if [ ! -d local ]; then
-  mkdir -m=700 local
+  mkdir -m 700 local
 fi
 cd local
 #echo "type:$type node:$node pwd:$(pwd)"; exit
