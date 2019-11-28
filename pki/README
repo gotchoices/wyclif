@@ -130,9 +130,9 @@ need to log into the host machine as the user "admin" in order to do this.
 
 For an SSL-secured connection, we will need to create keys as follows:
 
-  npm run makecert data <servername.%>
-  npm run makecert data admin
-  npm run makecert data users
+  npm run cert data <servername.%>
+  npm run cert data admin
+  npm run cert data users
 
 This will produce a separate Certificate Authority solely for our database
 connection.  
