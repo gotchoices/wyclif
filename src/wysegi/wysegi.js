@@ -20,8 +20,8 @@ import EntEdit from './entity.vue'
 import ErdView from './erd.vue'
 
 const AppTemplate = `
-  <wylib-app tag="wylib_wysegi" title="Wyseman GUI" :state="state" :tabs="tabs" :current="state.curTab" @tab="(t)=>{state.curTab = t}" help="Viewer for tables and views in a Wyseman managed database">
-    <keep-alive><component :is="currentComp" :state="state.tabs[state.curTab]"/></keep-alive>
+  <wylib-app tag="wylib_wysegi" title="Wyseman GUI" :state="state" v-slot="ws" :tabs="tabs" :current="state.curTab" @tab="(t)=>{state.curTab = t}" help="Viewer for tables and views in a Wyseman managed database">
+    <keep-alive><component :is="currentComp" :state="state.tabs[state.curTab]" :env="ws.env"/></keep-alive>
   </wylib-app>
 `
 new Vue(Object.assign({el: '#app', template: AppTemplate}, {

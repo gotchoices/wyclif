@@ -6,12 +6,12 @@
 
 <template>
   <div style="width: 100%; height: 100%; resize: both; overflow: auto; padding: 0 4px 4px 0;">
-    <wylib-win topLevel=true :key="0" :state="state.windows[0]" @close="">
-      <wylib-dbp :state="state.windows[0].client" :autoEdit="false" @execute="addWin"/>
+    <wylib-win topLevel=true :key="0" :state="state.windows[0]" :env="env" @close="">
+      <wylib-dbp :state="state.windows[0].client" :autoEdit="false" :env="env" @execute="addWin"/>
     </wylib-win>
     <div class="subwindows">
-      <wylib-win v-for="win,idx in state.windows" v-if="idx > 0 && win" topLevel=true :key="idx" :state="win" @close="close(idx)">
-        <wylib-dbp :state="win.client"/>
+      <wylib-win v-for="win,idx in state.windows" v-if="idx > 0 && win" topLevel=true :env="env" :key="idx" :state="win" @close="close(idx)">
+        <wylib-dbp :state="win.client" :env="env"/>
       </wylib-win>
     </div>
   </div>
@@ -23,7 +23,8 @@ import Wylib from 'wylib'
 export default {
   components: {'wylib-win': Wylib.Window, 'wylib-dbp': Wylib.DataView},
   props: {
-    state:	{type: Object, default: ()=>({})}
+    state:	{type: Object, default: ()=>({})},
+    env:       	{type: Object, default: Wylib.Common.envTpt},
   },
 //  data() { return {
 //  }},
