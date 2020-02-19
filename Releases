@@ -1,5 +1,8 @@
 Change Log:
 
+1.0.8	2020-Feb
+	- Configurable logging directory
+
 1.0.6	2019-Nov
 	- Implement script for building local certificates
 
