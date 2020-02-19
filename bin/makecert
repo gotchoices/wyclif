@@ -27,12 +27,12 @@ fi
 
 if [ -d pki ]; then			#Are we above a pki dir?
   if ! cd pki; then			#then go to it
-    echo "Can't find pki directory; Aborting"; exit 1
+    echo "Can't find pki directory; Aborting" >&2; exit 1
   fi
 elif [ ! -f ../example.conf ]; then	#Are we just below it
   cd ..
 elif [ ! -f example.conf ]; then	#Not in the right place
-  echo "Can't find ssl configuration file; Aborting"; exit 1
+  echo "Can't find ssl configuration file; Aborting" >&2; exit 1
 fi
 
 if [ ! -d local ]; then
@@ -44,17 +44,16 @@ cd local
 #Compare two files, return true if the first is newer than the second, or the second doesn't exist
 function fresher() {
   if [ ! -f "$1" ]; then
-    echo "Can't find source file: $1"
-    exit 1
+    echo "Can't find source file: $1" >&2; exit 1
   fi
   [ ! -f "$2" -o "$1" -nt "$2" ]
 }
 
-conf="../local.conf"
+conf="./local.conf"
 if [ ! -f $conf ]; then
   conf="../example.conf"
 fi
-. $conf			#Read local config as bash variables
+. $conf					#Read local config as bash variables
 
 nod=$(echo "$node" |sed -e 's/\..*$//')	#strip-down node, with no domain attached
 catype="${type}-ca"			#Filename base for Certificate Authority files
@@ -98,7 +97,9 @@ if fresher $conf $nodeconf; then	#Build configuration for this node
 fi
 
 if fresher $nodeconf ${nodetype}.key; then			#Private key for node
-  openssl genrsa -out ${nodetype}.key $length
+  if ! openssl genrsa -out ${nodetype}.key $length 2>&1; then	#Spews progress output into stderr
+    echo "Error generating rsa $nodetype key" >&2; exit 1
+  fi
   chmod og-rwx ${nodetype}.key
 fi
 
@@ -111,14 +112,18 @@ fi
 #fi
 
 if fresher ${nodetype}.key ${nodetype}.crt || fresher $nodeconf ${nodetype}.crt; then		#Make a signed certificate
-  openssl req -new -config $nodeconf -key ${nodetype}.key -$HASH -nodes -out ${nodetype}.csr
+  if ! openssl req -new -config $nodeconf -key ${nodetype}.key -$HASH -nodes -out ${nodetype}.csr 2>&1; then
+    echo "Error generating $nodetype csr" >&2; exit 1
+  fi
 
 #More elaborate tracking:
   if [ ! -f index.txt ]; then touch index.txt; fi
   if [ ! -f serial.txt ]; then echo '01' >serial.txt; fi
-  openssl ca -config $caconf -policy signing_policy -extensions signing_req \
-    -batch -cert ${catype}.crt -keyfile ${catype}.key -outdir . \
-    -out ${nodetype}.crt -notext -infiles ${nodetype}.csr
+  if ! openssl ca -config $caconf -policy signing_policy -extensions signing_req \
+	-batch -cert ${catype}.crt -keyfile ${catype}.key -outdir . \
+	-out ${nodetype}.crt -notext -infiles ${nodetype}.csr 2>&1; then
+    echo "Error generating $nodetype certificate" >&2; exit 1
+  fi
 
 #Simpler? (untested)
 #  openssl x509 -req -in ${nodetype}.csr -text -days $days -CA ${catype}.crt -CAkey ${catype}.key -CAcreateserial -out ${nodetype}.crt
