@@ -1,5 +1,10 @@
 Change Log:
 
+1.0.10	2020-May
+	- Misc bug fixes
+	- Specify logging path more easily
+	- Handle site favicon
+	
 1.0.8	2020-Feb
 	- Configurable logging directory
 
