@@ -1,6 +1,6 @@
 {
   "name": "wyclif",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "WyattERP Control Layer InterFace",
   "main": "lib/index.js",
   "scripts": {
@@ -36,22 +36,20 @@
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/preset-env": "^7.12.16",
-    "babel-loader": "^8.2.2",
+    "babel-loader": "^8.2.3",
     "core-js": "^3.8.3",
-    "css-loader": "^3.6.0",
-    "fibers": "^4.0.3",
-    "file-loader": "^5.1.0",
+    "css-loader": "^6.5.1",
+    "file-loader": "^6.2.0",
     "less": "^3.13.1",
-    "less-loader": "^5.0.0",
-    "node-sass": "^4.14.1",
+    "less-loader": "^10.2.0",
     "npm-run-all": "^4.1.5",
-    "sass": "^1.32.7",
-    "sass-loader": "^8.0.2",
+    "sass": "^1.43.4",
+    "sass-loader": "^12.3.0",
     "vue": "^2.6.12",
-    "vue-loader": "^15.9.6",
+    "vue-loader": "^15.9.8",
     "vue-template-compiler": "^2.6.12",
-    "webpack": "^4.46.0",
-    "webpack-cli": "^3.3.12",
-    "webpack-dev-server": "^3.11.2"
+    "webpack": "^5.64.1",
+    "webpack-cli": "^4.9.1",
+    "webpack-dev-server": "^4.5.0"
   }
 }
