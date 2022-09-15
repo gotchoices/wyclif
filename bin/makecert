@@ -29,11 +29,12 @@ if [ -d pki ]; then			#Are we above a pki dir?
   if ! cd pki; then			#then go to it
     echo "Can't find pki directory; Aborting" >&2; exit 1
   fi
-elif [ ! -f ../example.conf ]; then	#Are we just below it
+elif [ -f ../example.conf ]; then	#Are we just below it
   cd ..
 elif [ ! -f example.conf ]; then	#Not in the right place
   echo "Can't find ssl configuration file; Aborting" >&2; exit 1
 fi
+#echo "pwd:$(pwd)"; exit
 
 if [ ! -d local ]; then
   mkdir -m 700 local
