@@ -35,8 +35,8 @@ Instead, we will get our certificates built so your users can be sure they are
 really interacting with your server and not some man-in-the-middle attack 
 spoofing your users!  Just run:
 
-  npm run cert -t spa <servername.%>	or
-  wyclif-cert -t spa <servername.%>	#If npm binaries are in your path
+  npm run cert -t web <servername.%>	or
+  wyclif-cert -t web <servername.%>	#If npm binaries are in your path
 
 where "servername" (which defaults to wyatt.%) is the name of the computer 
 your wyclif server is running on. The ".%" is used to signal the scripts to 
@@ -45,8 +45,8 @@ name as the "commonName" on your certificate.  This should be the same hostame
 your users will put into their browser URL bar to connect to the SPA.
 
 The command will build a self-signed certificate authority (CA) certificate
-like "spa-ca.crt" (in the case of the SPA type) along with its super-secret 
-private key file "spa-ca.key."  You will be handing out the certificate to 
+like "web-ca.crt" (in the case of the SPA type) along with its super-secret 
+private key file "web-ca.key."  You will be handing out the certificate to 
 your users, but you must keep the key file private or your system will be 
 compromized!
 
@@ -55,25 +55,25 @@ pki directory.
 
 Also created are a key and certificate file for your wyclif server.  If you
 happened to name your server "wyatt," the certificate file will be called
-spa-wyatt.crt and should be found automatically when you launch the server 
+web-wyatt.crt and should be found automatically when you launch the server 
 process.  If you called it the same name as your machine's short hostname, the
 server _should_ still be able to find it.  If not, you will have to tell
 the server (via command line switches or environment variables) where to find 
 the correct certificates.
 
-For example, if your server is called "chip7," you could do something like:
+For example, if your server is called "wyatt7," you could do something like:
 
-  export WYCLIF_SERVER_KEY=/somedir/wyclif/pki/local/spa-chip7.key
-  export WYCLIF_SERVER_CERT=/somedir/wyclif/pki/local/spa-chip7.crt
+  export WYCLIF_SERVER_KEY=/somedir/wyclif/pki/local/web-wyatt7.key
+  export WYCLIF_SERVER_CERT=/somedir/wyclif/pki/local/web-wyatt7.crt
   npm run server
 
 or
   npm run server \
-  	--serverKey=/somedir/wyclif/pki/local/spa-chip7.key
-  	--serverCert=/somedir/wyclif/pki/local/spa-chip7.crt
+  	--webKey=/somedir/wyclif/pki/local/web-wyatt7.key
+  	--webCert=/somedir/wyclif/pki/local/web-wyatt7.crt
 
 Again, you must keep any ".key" file completely private (never group or world 
-accessible) or your system will be compromized!
+accessible) or your system will be compromised!
 
 In production environments, many will choose to store only encrypted versions 
 of their key files online and will have to supply the pass phrase each time the 
@@ -82,7 +82,7 @@ server is launched.  That is beyond the scope of this tutorial.
 Now, in order to connect to the SPA server, your users will need to install
 your CA certificate in their OS or browser.  This is the file called:
 
-  spa-ca.crt
+  web-ca.crt
 
 On MAC and Windows, they should be able to double click on the file to install
 the certificate.  They will then have to instruct the system that it should 
@@ -161,9 +161,9 @@ its associated key into the PostgreSQL configuration data directory.  Also copy
 the CA certificate as follows:
 
   cd /var/lib/pgsql/data		#Or wherever PostgreSQL is installed
-  cp ~/mychips/pki/local/data-wyatt.crt .
-  cp ~/mychips/pki/local/data-wyatt.key .
-  cp ~/mychips/pki/local/data-ca.crt .
+  cp ~/project/pki/local/data-wyatt.crt .
+  cp ~/project/pki/local/data-wyatt.key .
+  cp ~/project/pki/local/data-ca.crt .
 
 Then modify postgresql.conf as follows:
 
