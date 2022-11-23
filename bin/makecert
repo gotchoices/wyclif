@@ -5,7 +5,7 @@
 #Certificates will be build in a dir called pki/local
 # -----------------------------------------------------------------------------
 length=2048				#RSA Key length
-type=spa				#Build application server keys by default
+type=web				#Build application server keys by default
 days=750
 node="wyatt.%"				#Machine name for the certificate we will build (%=domain)
 HASH="sha256"

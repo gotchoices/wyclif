@@ -37,7 +37,7 @@ echo "Please change/review the settings to reflect your local site."
 echo -n "Enter to continue: "; read ans
 ${EDITOR} local.conf
 
-npm run cert -t spa "${host}.%"
+npm run cert -t web "${host}.%"
 
 npm run cert -t data "${host}.%"
 npm run cert -t data admin
