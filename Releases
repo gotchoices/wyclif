@@ -1,5 +1,9 @@
 Change Log:
 
+1.0.18	2023-Feb
+	- Report layer can do language translation
+	- Track with other package updates
+
 1.0.16	2022-Sep
 	- Better OS independence
 	- Track with other package updates
