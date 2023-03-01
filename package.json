@@ -30,7 +30,7 @@
     "express": "^4.17.1",
     "serve-favicon": "^2.5.0",
     "string-hash": "^1.1.3",
-    "winston": "^3.3.3",
+    "winston": "^3.8.2",
     "yargs": "^15.4.1"
   },
   "devDependencies": {
