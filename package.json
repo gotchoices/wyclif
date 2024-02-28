@@ -1,6 +1,6 @@
 {
   "name": "wyclif",
-  "version": "1.0.21",
+  "version": "1.2.0",
   "description": "WyattERP Control Layer InterFace",
   "main": "lib/index.js",
   "scripts": {

@@ -1,5 +1,8 @@
 Change Log:
 
+1.1.0	2024-Feb
+	- Migrated to Vue 3
+
 1.0.21	2023-Sep
 	- Improved report handling
 

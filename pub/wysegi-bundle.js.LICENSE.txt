@@ -16,12 +16,6 @@
  */
 
 /*!
- * Vue.js v2.7.14
- * (c) 2014-2022 Evan You
- * Released under the MIT License.
- */
-
-/*!
  * jQuery JavaScript Library v3.7.1
  * https://jquery.com/
  *
@@ -31,6 +25,8 @@
  *
  * Date: 2023-08-28T13:37Z
  */
+
+/*! #__NO_SIDE_EFFECTS__ */
 
 /*! *****************************************************************************
     Copyright (c) Microsoft Corporation.
@@ -59,9 +55,27 @@
  **/
 
 /**
- * @license Fraction.js v4.3.5 31/08/2023
+ * @license Fraction.js v4.3.7 31/08/2023
  * https://www.xarg.org/2014/03/rational-numbers-in-javascript/
  *
  * Copyright (c) 2023, Robert Eisele (robert@raw.org)
  * Dual licensed under the MIT or GPL Version 2 licenses.
  **/
+
+/**
+* @vue/runtime-core v3.4.20
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* @vue/shared v3.4.20
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* vue v3.4.20
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
