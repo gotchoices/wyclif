@@ -1,4 +1,5 @@
-const VueLoaderPlugin = require('vue-loader/lib/plugin')
+const { VueLoaderPlugin } = require('vue-loader')
+const webpack = require('webpack')
 const path = require('path')
 
 module.exports = {
@@ -13,11 +14,16 @@ module.exports = {
   },
   resolve: {
     alias: {
-      vue: 'vue/dist/vue.js'
+      vue: path.resolve('./node_modules/vue/dist/vue.runtime.esm-bundler.js')
     }
   },
   plugins: [
-    new VueLoaderPlugin()
+    new VueLoaderPlugin(),
+    new webpack.DefinePlugin({          // Define Vue feature flags here
+      __VUE_OPTIONS_API__: JSON.stringify(true),
+      __VUE_PROD_DEVTOOLS__: JSON.stringify(true),
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(true),
+    })
   ],
   performance: {
     maxAssetSize: 2000000,

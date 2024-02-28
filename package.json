@@ -6,16 +6,17 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev-hot": "webpack-dev-server --hot --config build/webpack.test.conf.js",
-    "dev-build": "webpack --mode development --watch --progress --config build/webpack.dist.conf.js",
+    "dev-build": "webpack --mode development --watch --progress --config build/webpack.dist.conf.js --stats-error-details",
     "build": "webpack --mode production --config build/webpack.dist.conf.js",
     "dev-server": "bin/server.js --spaPort=0",
     "dev": "npm-run-all --parallel dev-build dev-server",
     "server": "bin/server.js",
+    "build-schema": "cd schema && wyseman objects text defs init -S ./schema.json",
+    "start": "bin/localcerts -b web && bin/server.js",
     "cert": "bin/makecert",
-    "init": "bin/localcerts",
+    "initcerts": "bin/localcerts web",
     "profile": "webpack --profile --json >/tmp/webpack-stats.json",
-    "preversion": "npm-run-all build && git add -A",
-    "certificate": "bin/makecert"
+    "preversion": "npm-run-all build && git add -A"
   },
   "bin": {
     "wyclif": "bin/server.js",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/preset-env": "^7.12.16",
+    "@vue/compiler-sfc": "3.4.19",
     "babel-loader": "^8.2.3",
     "core-js": "^3.8.3",
     "css-loader": "^6.5.1",
@@ -45,8 +47,8 @@
     "npm-run-all": "^4.1.5",
     "sass": "^1.43.4",
     "sass-loader": "^12.3.0",
-    "vue": "^2.6.12",
-    "vue-loader": "^15.9.8",
+    "vue": "^3.4.19",
+    "vue-loader": "^17.4.2",
     "vue-template-compiler": "^2.6.12",
     "webpack": "^5.76.0",
     "webpack-cli": "^4.9.1",

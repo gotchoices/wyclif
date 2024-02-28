@@ -67,7 +67,8 @@ export default {
           } else {
             let x = Math.random() * this.state.width/2
               , y = Math.random() * this.state.height/2
-            this.$set(this.state.nodes, dat.obj, Object.assign(bodyObj, {tag:dat.obj, x, y, radius, links:[]}))
+//            this.$set(this.state.nodes, dat.obj, Object.assign(bodyObj, {tag:dat.obj, x, y, radius, links:[]}))
+            this.state.nodes[dat.obj] = Object.assign(bodyObj, {tag:dat.obj, x, y, radius, links:[]})
           }
               
 //console.log("  fkeys:", dat.fkeys)
