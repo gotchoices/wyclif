@@ -13,8 +13,10 @@
 //- 
 
 <template>
-  <wylib-app tag="wylib_wysegi" title="Wyseman GUI" :state="state" v-slot="ws" :tabs="tabs" :current="state.curTab" @tab="(t)=>{state.curTab = t}" help="Viewer for tables and views in a Wyseman managed database">
-    <component v-for="t in runTabs" :key="t.tag" v-show="curTab==t.tag" :is="components[t.tag]" :tag="t.tag" :view="views[t.tag]" :state="state.tabs[t.tag]" :env="ws.env"/>
+  <wylib-app tag="wylib_wysegi" title="Wyseman GUI" :state="state" :tabs="tabs" :current="state.curTab" @tab="(t)=>{state.curTab = t}" help="Viewer for tables and views in a Wyseman managed database">
+    <template v-slot:default="ws">
+      <component v-for="t in runTabs" :key="t.tag" v-show="curTab==t.tag" :is="components[t.tag]" :tag="t.tag" :view="views[t.tag]" :state="state.tabs[t.tag]" :env="ws.env"/>
+    </template>
   </wylib-app>
 </template>
 
