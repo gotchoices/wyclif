@@ -7,7 +7,7 @@
 <template>
   <div style="width: 100%; height: 100%; resize: both; overflow: auto; padding: 0 4px 4px 0;">
     <wylib-svgraph :state="state" ref="svg" curve=true :edge="edge" :menu="menu" :env="env"
-      @drag="dragHand" @drop="dropHand" @input="restart" @refresh="refresh" @reset="reset"/>
+      @drag="dragHand" @drop="dropHand" @modify="restart" @refresh="refresh" @reset="reset"/>
   </div>
 </template>
 
