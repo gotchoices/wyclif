@@ -1,0 +1,138 @@
+#!/usr/bin/env node
+
+// Ensures a libp2p peer identity key file exists for a given name.
+// Creates a default key ('wyseman') if none exists for that name.
+// Supports generating RSA, Ed25519, Secp256k1, ECDSA keys.
+// Copyright WyattERP.org; See license in root of this package
+// -----------------------------------------------------------------------------
+// Usage: node wyclif/bin/peerid [name] [--type type] [--bits bits] [-v|--verbose]
+// Example:
+//   node wyclif/bin/peerid                          # Ensures default 'wyseman' Ed25519 key exists (silent)
+//   node wyclif/bin/peerid -v                       # Ensures default 'wyseman' Ed25519 key exists (verbose)
+//   node wyclif/bin/peerid my-rsa -t rsa -b 3072 -v # Ensures 'my-rsa' 3072-bit RSA key exists (verbose)
+
+const Fs = require('fs')
+const Path = require('path')
+const { execSync } = require('child_process')
+const yargs = require('yargs/yargs')
+const { hideBin } = require('yargs/helpers')
+
+// Dynamic import for ESM modules later in the script
+
+const DEFAULT_NAME = 'wyseman'
+const DEFAULT_TYPE = 'Ed25519'
+const DEFAULT_RSA_BITS = 2048
+const SUPPORTED_TYPES = ['RSA', 'Ed25519', 'Secp256k1', 'ECDSA']
+
+const KEY_SUBDIR = 'pki/local'
+const FILENAME_PREFIX = 'peerid-'
+const FILENAME_EXT = '.key'
+
+// --- Argument Parsing ---
+const argv = yargs(hideBin(process.argv))
+  .usage('Usage: $0 [name] [--type type] [--bits bits] [-v|--verbose]')
+  .positional('name', {
+    describe: 'Logical name for the peer identity key',
+    type: 'string',
+    default: DEFAULT_NAME
+  })
+  .option('type', {
+    alias: 't',
+    describe: 'Type of key to generate',
+    choices: SUPPORTED_TYPES,
+    default: DEFAULT_TYPE
+  })
+  .option('bits', {
+    alias: 'b',
+    describe: 'Bit length for RSA keys',
+    type: 'number',
+    default: DEFAULT_RSA_BITS
+  })
+  .option('verbose', {
+    alias: 'v',
+    describe: 'Output informational messages to stdout',
+    type: 'boolean',
+    default: false
+  })
+  .help()
+  .alias('help', '?') // Use -? for help to free up -h
+  .showHelpOnFail(false, "Specify --help or -? for available options")
+  // Custom validation
+  .check((argv) => {
+    if (argv.type === 'RSA' && argv.bits < 2048) {
+        throw new Error('RSA key length must be at least 2048 bits.');
+    }
+    return true;
+  })
+  .argv;
+
+const keyName = argv.name;
+const keyType = argv.type;
+const keyBits = argv.bits;
+const verbose = argv.verbose;
+
+// --- Determine Paths ---
+let appRoot;
+try {
+  appRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+} catch (err) {
+  console.error("Error finding application root directory (git rev-parse failed). Falling back to current working directory.");
+  appRoot = process.cwd();
+}
+
+const keyDir = Path.join(appRoot, KEY_SUBDIR);
+const keyFileName = `${FILENAME_PREFIX}${keyName}${FILENAME_EXT}`;
+const keyFilePath = Path.join(keyDir, keyFileName);
+
+// --- Helper for logging ---
+const logInfo = (...args) => { if (verbose) console.info(...args); };
+const logError = console.error;
+
+// --- Script Body (asynchronous wrapper) ---
+(async () => {
+    const crypto = await import('@libp2p/crypto')
+    const { peerIdFromPrivateKey } = await import('@libp2p/peer-id')
+
+    try {
+        // Check if key file exists and is accessible
+        Fs.accessSync(keyFilePath, Fs.constants.R_OK);
+        logInfo(`Peer ID key '${keyName}' already exists: ${keyFilePath}`);
+
+    } catch (err) {
+        // If access fails (likely file not found), create it
+        if (err.code === 'ENOENT') {
+            logInfo(`Peer ID key '${keyName}' not found.`);
+            logInfo(`  Creating type ${keyType}${keyType === 'RSA' ? ' (' + keyBits + '-bit)' : ''}: ${keyFilePath}`);
+            try {
+                // 1. Generate key pair
+                const keyPair = await crypto.keys.generateKeyPair(keyType, keyBits);
+
+                // 2. Marshal the *private* key
+                const marshalledPrivateKey = crypto.keys.privateKeyToProtobuf(keyPair);
+
+                // 3. Ensure the directory exists
+                Fs.mkdirSync(keyDir, { recursive: true, mode: 0o755 });
+
+                // 4. Write the marshalled private key securely
+                Fs.writeFileSync(keyFilePath, marshalledPrivateKey, { mode: 0o600 });
+
+                // 5. Derive and display the public PeerID (only if verbose)
+                 if (verbose) {
+                    const peerId = await peerIdFromPrivateKey(keyPair);
+                    console.info(`Successfully created key '${keyName}'.`);
+                    console.info(`  File: ${keyFilePath}`);
+                    console.info(`  Type: ${keyType}${keyType === 'RSA' ? ' (' + keyBits + '-bit)' : ''}`);
+                    console.info(`  PeerID: ${peerId.toString()}`);
+                 }
+
+            } catch (createErr) {
+                logError(`Error creating peer ID key '${keyName}':`, createErr.message);
+                process.exit(1);
+            }
+        } else {
+            // Other error accessing file (e.g., permissions)
+            logError(`Error accessing peer ID key file '${keyFilePath}':`, err.message);
+            process.exit(1);
+        }
+    }
+})(); 

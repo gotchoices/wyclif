@@ -1,0 +1,418 @@
+#!/usr/bin/env node
+//Create a connection ticket OR initialize base.parm values
+// -----------------------------------------------------------------------------
+//Usage ./adminticket [options]
+// Options:
+//  -H webHost -P webPort -u username -o outfile -i id
+//  -d database -h databaseHost -p databasePort
+//  --schema schemaPath --spa-name spaName
+//  -F format (json|link|web|p2p or unique abbreviation)
+//  [-q|-Q] (Legacy format flags, superseded by -F)
+//  [-a addr] [-b bootaddr ...]
+//  -I | --init (Initialize mode: Write params to DB instead of fetching ticket)
+//TODO:
+//- 
+const Fs = require('fs')
+const Os = require('os')
+const Client = require('pg-native') // *** Use pg-native for sync calls ***
+var argv = require('yargs')
+  .option('schema', {
+      describe: 'Path to schema file (e.g., schema.sql or schema.json)',
+      type: 'string'
+  })
+  .option('spa-name', {
+      describe: 'Name of the SPA for the -Q URL format',
+      type: 'string'
+      // No default here, default logic applied later
+  })
+  .option('format', {
+      alias: 'F',
+      describe: "Output format (json|link|web)",
+      type: 'string'
+  })
+  .option('connection', {
+      alias: 'c',
+      describe: "Connection context type (web|p2p)",
+      choices: ['web', 'p2p'],
+      type: 'string'
+  })
+  .option('q', {
+      describe: 'Shortcut for: -F link -c web',
+      type: 'boolean'
+  })
+  .option('Q', {
+      describe: 'Shortcut for: -F web -c web',
+      type: 'boolean'
+  })
+  .option('z', {
+      describe: 'Shortcut for: -F link -c p2p',
+      type: 'boolean'
+  })
+  .option('addr', {
+      alias: 'a',
+      describe: 'Override the p2p multiaddress for the ticket',
+      type: 'string'
+  })
+  .option('boot', {
+      alias: 'b',
+      describe: 'Override bootstrap multiaddress(es) (can be used multiple times)',
+      type: 'array' // Allows -b /ma1 -b /ma2
+  })
+  .option('init', {
+      alias: 'I',
+      describe: 'Initialize mode: Set wyseman params in base.parm instead of fetching ticket',
+      type: 'boolean',
+      default: false
+  })
+  .option('web-host', {
+      alias: 'H',
+      describe: 'Web server host', 
+      type: 'string' 
+  })
+  .option('ws-port', {
+      alias: 'P',
+      describe: 'Web server WS port', 
+      type: 'number' 
+  })
+  .option('http-port', {
+      alias: 'S',
+      describe: 'Web server HTTP port', 
+      type: 'number', 
+      default: 4000 
+  })
+  .option('db-user', {
+      alias: 'u',
+      describe: 'DB admin user for query', 
+      type: 'string', 
+      default: 'admin' 
+  })
+  .option('outfile', {
+      alias: 'o',
+      describe: 'Output file path', 
+      type: 'string' 
+  })
+  .option('ticket-id', {
+      alias: 'i',
+      describe: 'ID/User for whom to create ticket', 
+      type: 'string' 
+  })
+  .option('db-name', {
+      alias: 'd',
+      describe: 'Database name', 
+      type: 'string',
+      default: 'wyatt' 
+  })
+  .option('db-host', {
+      alias: 'h',
+      describe: 'Database host', 
+      type: 'string' 
+  })
+  .option('db-port', {
+      alias: 'p',
+      describe: 'Database port', 
+      type: 'number',
+      default: 5432 
+  })
+  .help('?')
+  .alias('?', 'help')
+  .argv
+//console.log("argv:", argv)
+
+var webHost	= argv['web-host'] || Os.hostname() || 'localhost'
+var webHttpPort	= argv['http-port']
+var webWSPort	= argv['ws-port'] || (argv['http-port'] ? argv['http-port'] + 1 : 4100)
+var dbHost	= argv['db-host'] || process.env.WYATT_DBHOST || 'localhost'
+var database	= argv['db-name']
+var dbPort	= argv['db-port']
+var user	= argv['db-user']
+var outFile	= argv.outfile ? (Array.isArray(argv.outfile) ? argv.outfile.pop() : argv.outfile) : null
+var id		= argv['ticket-id'] || user
+var schemaPath = argv.schema || (__dirname + "/../schema/schema.sql")
+var spaNameArg = argv['spa-name']
+var p2pAddr = argv.addr;
+var p2pBoot = argv.boot;
+var initMode = argv.init;
+
+// *** Determine Effective Format and Connection Type ***
+let effectiveFormat = 'json';
+let effectiveConnectionType = 'web';
+
+if (argv.Q) {
+    effectiveFormat = 'web';
+    effectiveConnectionType = 'web';
+} else if (argv.q) {
+    effectiveFormat = 'link';
+    effectiveConnectionType = 'web';
+} else if (argv.z) {
+    effectiveFormat = 'link';
+    effectiveConnectionType = 'p2p';
+} else {
+    if (argv.F) {
+        const formatArg = argv.F.toLowerCase();
+        if ('json'.startsWith(formatArg)) effectiveFormat = 'json';
+        else if ('link'.startsWith(formatArg)) effectiveFormat = 'link';
+        else if ('web'.startsWith(formatArg)) effectiveFormat = 'web';
+        else console.warn(`Warning: Unknown format '${argv.F}' specified. Defaulting to ${effectiveFormat}.`);
+    }
+    if (argv.c) {
+        effectiveConnectionType = argv.c;
+    }
+}
+
+// *** Require Log FIRST ***
+const Log = require("../lib/log.js")
+var log = Log('adminticket') // Initialize log instance immediately
+log.debug(`Init mode: ${initMode}`)
+
+if (!initMode) {
+    log.debug(`Effective format: ${effectiveFormat}`);
+    log.debug(`Effective connection type: ${effectiveConnectionType}`);
+}
+
+let db = new Client();
+let exitCode = 0;
+
+// --- Connect to DB ---
+try {
+    log.debug(`Attempting SYNC DB connection: db=${database} user=${user} host=${dbHost} port=${dbPort}`);
+    const connString = `dbname=${database} user=${user} host=${dbHost} port=${dbPort}`;
+    db.connectSync(connString); 
+    log.debug("SYNC DB connection established.");
+} catch (err) {
+    log.error("DB Connection FAILED:", err.message); // Keep simple error message
+    if (err.code) log.error("  SQLSTATE Code: ", err.code);
+    process.exit(1); // Exit immediately if connection fails
+}
+
+// --- Main Logic --- 
+try {
+    if (initMode) {
+        // --- Init Mode --- 
+        log.info("Initialize mode: Setting parameters via base.parmset function...");
+        const paramsToSet = [];
+        // Collect parameters to set from command line args
+        if (argv['web-host']) paramsToSet.push({ name: 'host', value: argv['web-host'], type: 'text' });
+        if (argv['ws-port']) paramsToSet.push({ name: 'port', value: argv['ws-port'], type: 'int' }); // Use correct type
+        if (argv.addr) paramsToSet.push({ name: 'addr', value: argv.addr, type: 'text' });
+        if (argv.boot) {
+            // Store boot addresses as a JSON string (which is text)
+            const bootValue = JSON.stringify(Array.isArray(argv.boot) ? argv.boot : [argv.boot]);
+            paramsToSet.push({ name: 'boot', value: bootValue, type: 'text' });
+        }
+
+        if (paramsToSet.length === 0) {
+            log.warn("Initialize mode selected, but no specific parameters provided to set.");
+        } else {
+            let success = true;
+            for (const param of paramsToSet) {
+                let sql = '';
+                // *** Construct SQL with explicit cast based on type ***
+                switch (param.type) {
+                    case 'int':
+                        sql = `SELECT base.parmset('wyseman', $1, $2::int, $3)`;
+                        break;
+                    case 'boolean': // Add boolean if needed later
+                        sql = `SELECT base.parmset('wyseman', $1, $2::boolean, $3)`;
+                        break;
+                    case 'float': // Add float if needed later
+                         sql = `SELECT base.parmset('wyseman', $1, $2::float, $3)`;
+                         break;
+                    case 'date': // Add date if needed later
+                         sql = `SELECT base.parmset('wyseman', $1, $2::date, $3)`;
+                         break;
+                    case 'text':
+                    default: // Default to text
+                        sql = `SELECT base.parmset('wyseman', $1, $2::text, $3)`;
+                        param.type = 'text'; // Ensure type param matches cast
+                        break;
+                }
+                
+                const sqlParams = [param.name, param.value, param.type]; 
+                
+                try {
+                    db.querySync(sql, sqlParams);
+                    log.info(`Successfully set 'wyseman.${param.name}' = '${param.value}' via base.parmset.`);
+                } catch (queryError) {
+                    log.error(`Error setting parameter '${param.name}' via base.parmset:`, queryError.message);
+                    if(queryError.code) log.error(`  SQLSTATE: ${queryError.code}`);
+                    success = false;
+                }
+            } 
+
+            if (!success) {
+                log.error("One or more parameters failed to set.");
+                exitCode = 1;
+            }
+        } 
+    } else {
+        // --- Ticket Generation Mode ---
+        log.info(`Ticket generation mode (format: ${effectiveFormat}, connection: ${effectiveConnectionType})...`);
+        let q = "select token, expires, host, port, addr, boot from base.ticket_login(base.user_id($1))";
+        let res;
+        try {
+            res = db.querySync(q, [id]);
+        } catch (err) {
+            log.error("Database query error executing ticket_login:", err.message, "\n Query:", q);
+            if(err.code) log.error(`  SQLSTATE: ${err.code}`);
+            if(err.detail) log.error(`  Detail: ${err.detail}`);
+             // Let the main catch block handle setting exit code and logging full error
+             throw err; // Rethrow to be caught by main try..catch
+        }
+
+        // Processing happens immediately after sync query completes
+        if (res && res.length >= 1) { // pg-native returns array directly
+            let tickText = '';
+            let ticket = res[0]; // Get first row
+            
+            // Apply command-line overrides first (easier before potential deletions)
+            if (argv['web-host']) ticket.host = argv['web-host'];
+            if (argv['ws-port']) ticket.port = argv['ws-port'];
+            if (argv.addr) ticket.addr = argv.addr;
+            if (argv.boot) ticket.boot = Array.isArray(argv.boot) ? argv.boot : [argv.boot];
+
+            // Format ticket based on effectiveFormat and effectiveConnectionType
+            switch (effectiveFormat) {
+                case 'web': // -Q or -F web: Generate full original URL
+                    const spaNameToUse = argv['spa-name'] || 'wyatt';
+                    const httpPortToUse = argv['http-port'] || 4000;
+                    const webHostForURL = ticket.host || 'localhost'; // Fallback
+                    const webPortForURL = ticket.port || 54320; // Fallback
+                    // *** Construct query string based on connection type ***
+                    let webQuery = '';
+                    let webParams = [];
+                    if (ticket.token) webParams.push(`token=${ticket.token}`);
+                    webParams.push(`user=${id}`);
+                    if (effectiveConnectionType === 'web') {
+                        webParams.push(`host=${webHostForURL}`);
+                        webParams.push(`port=${webPortForURL}`);
+                    } else { // p2p
+                        if (ticket.addr) webParams.push(`addr=${encodeURIComponent(ticket.addr)}`);
+                        // ... handle boot param ...
+                         let bootVal = '';
+                         let bootArray = [];
+                         if (ticket.boot) { /* ... parse/process boot ... */ 
+                            if (typeof ticket.boot === 'string') { try { bootArray = JSON.parse(ticket.boot); if(!Array.isArray(bootArray)) bootArray = []; } catch(e){ log.error(/*...*/); bootArray=[]; } }
+                            else if (Array.isArray(ticket.boot)) { bootArray = ticket.boot; }
+                            if (bootArray.length > 0) { try { bootVal = bootArray.map(encodeURIComponent).join(','); } catch(e) { log.error(/*...*/); bootVal='';} }
+                        }
+                         if (bootVal) webParams.push(`boot=${bootVal}`);
+                    }
+                    webQuery = webParams.join('&');
+                    // *** Construct the full URL including http port and spa name ***
+                    tickText = `https://${webHostForURL}:${httpPortToUse}/${spaNameToUse}.html?${webQuery}`;
+                    break;
+                case 'link': // -q, -z, or -F link: Generate deep link URL https://<host>/connect?<params>
+                    // Base URL uses ticket host (or default), fixed path /connect
+                    const linkHostForBase = ticket.host || 'localhost'; 
+                    const linkBase = `https://${linkHostForBase}/connect`;
+                    let linkQuery = '';
+                    let linkParams = [];
+                    if (ticket.token) linkParams.push(`token=${ticket.token}`);
+                    linkParams.push(`user=${id}`);
+                    if (effectiveConnectionType === 'web') {
+                        // Query params for web
+                        const linkHost = ticket.host || 'localhost'; 
+                        const linkPort = ticket.port || 54320; 
+                        linkParams.push(`host=${linkHost}`);
+                        linkParams.push(`port=${linkPort}`);
+                    } else { // effectiveConnectionType === 'p2p'
+                        // Query params for p2p
+                        if (ticket.addr) {
+                            linkParams.push(`addr=${encodeURIComponent(ticket.addr)}`);
+                        } else {
+                            log.warn(`Warning: addr field is null/empty for p2p link format (user ${id}).`);
+                        }
+                        // ... refined boot handling (keep as is) ...
+                        let bootVal = '';
+                        let bootArray = [];
+                        if (ticket.boot) {
+                            if (typeof ticket.boot === 'string') {
+                                try {
+                                    bootArray = JSON.parse(ticket.boot);
+                                    if (!Array.isArray(bootArray)) bootArray = []; // Ensure it's an array after parsing
+                                } catch (parseErr) {
+                                    log.error(`Error parsing ticket.boot JSON string: ${parseErr.message}. Value: ${ticket.boot}`);
+                                    bootArray = []; // Reset to empty array on parse error
+                                }
+                            } else if (Array.isArray(ticket.boot)) {
+                                bootArray = ticket.boot; // Use directly if already an array (from override)
+                            }
+
+                            if (bootArray.length > 0) {
+                                try {
+                                    bootVal = bootArray.map(encodeURIComponent).join(',');
+                                } catch (mapErr) {
+                                    log.error(`Error mapping/joining boot array: ${mapErr.message}. Array: ${JSON.stringify(bootArray)}`);
+                                    bootVal = ''; // Reset on error
+                                }
+                            }
+                        }
+                        if (bootVal) {
+                            linkParams.push(`boot=${bootVal}`);
+                        }
+                    }
+                    linkQuery = linkParams.join('&');
+                    tickText = `${linkBase}?${linkQuery}`; // Combine base and query
+                    break;
+                case 'json':
+                default:
+                    if (id !== user) ticket.user = id;
+                    // Selectively remove fields based on connection context
+                    if (effectiveConnectionType === 'web') {
+                        delete ticket.addr;
+                        delete ticket.boot;
+                    } else { // effectiveConnectionType === 'p2p'
+                        delete ticket.host;
+                        delete ticket.port;
+                    }
+                    // Remove any remaining null/empty optional fields
+                    if (ticket.addr === null || ticket.addr === '') delete ticket.addr;
+                    if (ticket.boot === null || (Array.isArray(ticket.boot) && ticket.boot.length === 0)) delete ticket.boot;
+                    if (ticket.host === null || ticket.host === '') delete ticket.host;
+                    if (ticket.port === null) delete ticket.port; // Port is number
+
+                    tickText = JSON.stringify({ ticket });
+                    break;
+            }
+
+            // Output ticket
+            if (outFile) {
+                try {
+                    Fs.writeFileSync(outFile, tickText);
+                    log.info(`Ticket written to ${outFile}`);
+                } catch (writeErr) {
+                    // Log error, but don't necessarily exit if file write fails
+                    log.error(`Error writing ticket to file ${outFile}:`, writeErr.message);
+                    exitCode = 1;
+                }
+            } else {
+                console.log(tickText);
+            }
+        } else {
+            // Log error if no data returned, let script exit normally via finally
+            log.error(`No ticket data returned for user ID: ${id}`);
+            // Set exit code, error was not thrown, but it's a failure condition
+            exitCode = 1;
+        }
+    }
+} catch (err) {
+    // Top-level catch handles connection errors and query errors
+    log.error("adminticket script FAILED:");
+    log.error("  Error Message: ", err.message);
+    if (err.code) log.error("  SQLSTATE Code: ", err.code);
+    if (err.routine) log.error("  DB Routine:    ", err.routine);
+    if (err.detail) log.error("  Detail:        ", err.detail);
+    if (err.where) log.error("  Context:       ", err.where);
+    exitCode = 1; // Set exit code on error
+} finally {
+    log.debug("Entering finally block...");
+    if (db) { 
+        log.debug("Disconnecting DB connection.");
+        db.end();
+    } else {
+        log.debug("DB object not defined in finally block (connection likely failed).");
+    }
+    log.debug("Exiting.");
+    process.exitCode = exitCode; // Set exit code for natural exit
+}
+// Removed IIFE - script ends here
